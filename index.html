@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Catch the Dot - 4 Modes</title>
+<style>
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;touch-action:manipulation}
+button{-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;color:#1f2937;display:flex;justify-content:center;padding:25px 12px}
+.game{width:min(800px,100%)}h1{text-align:center;margin:0 0 15px}
+.modes{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-bottom:15px}
+.mode{border:2px solid #d1d5db;background:white;border-radius:12px;padding:11px 15px;font-weight:700;cursor:pointer;min-height:44px}
+.mode.selected{border-color:#2563eb;background:#dbeafe}
+.top{display:flex;gap:15px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+.stats{display:flex;gap:16px;flex-wrap:wrap;font-size:17px}
+#start{border:0;border-radius:10px;padding:12px 20px;background:#2563eb;color:white;font-weight:700;cursor:pointer}
+#arena{height:430px;position:relative;overflow:hidden;background:white;border:2px solid #d1d5db;border-radius:16px}
+#message{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px}
+#message h2{margin:0 0 8px;font-size:28px}#message p{margin:5px 0;color:#6b7280}
+#dot{display:none;position:absolute;touch-action:manipulation;-webkit-user-select:none;user-select:none;border:0;border-radius:50%;background:#ef4444;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+#status{text-align:center;margin-top:12px;color:#6b7280;font-weight:600}
+@media(max-width:500px){
+#arena{height:360px}.stats{font-size:15px;gap:10px}.top{justify-content:center}
+#start{width:100%}.mode{flex:1 1 45%;min-width:0}
+}
+@media(max-width:340px){#arena{height:320px}.mode{font-size:13px;padding:10px 8px}}
+
+</style>
+
+<script>
+(function () {
+  var ua = navigator.userAgent || "";
+  var platform = navigator.platform || "";
+  var isWindows = /Windows/i.test(ua) || /^Win/i.test(platform);
+  var isMobileLike = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+
+  if (!isWindows || isMobileLike) {
+    document.addEventListener("DOMContentLoaded", function () {
+      document.body.innerHTML =
+        '<div style="min-height:70vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:Arial,sans-serif;background:#f4f6f8;color:#1f2937;text-align:center">' +
+        '<div><div style="font-size:52px">🖥️</div><h1>This game is Windows only</h1>' +
+        '<p>Please open it on a Windows laptop or desktop computer.</p></div></div>';
+    });
+  }
+})();
+</script>
+
+</head>
+<body>
+<div class="game">
+<h1>🎯 Catch the Dot</h1>
+<div class="modes">
+<button class="mode selected" data-mode="easy">😊 Easy</button>
+<button class="mode" data-mode="medium">😎 Medium</button>
+<button class="mode" data-mode="hard">🔥 Hard</button>
+<button class="mode" data-mode="ultra">💀 Ultra Hard</button>
+</div>
+<div class="top"><div class="stats">
+<div>Mode: <b id="modeName">Easy</b></div><div>Score: <b id="score">0</b></div>
+<div>Best: <b id="best">0</b></div><div>Time: <b id="time">15</b>s</div>
+</div><button id="start">Start Game</button></div>
+<div id="arena"><div id="message"><div><h2>Choose your challenge! 🎮</h2>
+<p>Easy: 15s — moves slowly</p><p>Medium: 6s — medium speed</p>
+<p>Hard: 4s — fast</p><p>Ultra Hard: 2s — very fast 💀</p></div></div>
+<button id="dot" aria-label="Catch the dot"></button></div>
+<div id="status">Easy mode selected. Ready!</div>
+</div>
+<script>
+const settings={
+ easy:{name:"Easy",time:15,size:70,move:1600},
+ medium:{name:"Medium",time:6,size:50,move:850},
+ hard:{name:"Hard",time:4,size:38,move:550},
+ ultra:{name:"Ultra Hard",time:2,size:28,move:300}
+};
+let current="easy",score=0,best={easy:0,medium:0,hard:0,ultra:0},time=15,timer=null,moveTimer=null,playing=false;
+const arena=document.getElementById("arena"),dot=document.getElementById("dot"),start=document.getElementById("start"),
+scoreEl=document.getElementById("score"),bestEl=document.getElementById("best"),timeEl=document.getElementById("time"),
+modeName=document.getElementById("modeName"),message=document.getElementById("message"),statusEl=document.getElementById("status");
+function moveDot(){
+ const size=settings[current].size,maxX=Math.max(0,arena.clientWidth-size),maxY=Math.max(0,arena.clientHeight-size);
+ dot.style.left=Math.floor(Math.random()*(maxX+1))+"px";dot.style.top=Math.floor(Math.random()*(maxY+1))+"px";
+}
+function stop(){clearInterval(timer);clearInterval(moveTimer);timer=null;moveTimer=null}
+function selectMode(mode){
+ if(playing){playing=false;stop();dot.style.display="none"}
+ current=mode;const s=settings[current];
+ document.querySelectorAll(".mode").forEach(b=>b.classList.toggle("selected",b.dataset.mode===mode));
+ modeName.textContent=s.name;time=s.time;timeEl.textContent=time;score=0;scoreEl.textContent=0;bestEl.textContent=best[current];
+ dot.style.width=s.size+"px";dot.style.height=s.size+"px";message.style.display="flex";
+ message.innerHTML="<div><h2>"+s.name+" Mode</h2><p>You have "+s.time+" seconds. Press Start!</p></div>";
+ statusEl.textContent=s.name+" mode selected. Ready!";start.textContent="Start Game";
+}
+function endGame(){
+ if(!playing)return;playing=false;stop();dot.style.display="none";
+ if(score>best[current])best[current]=score;bestEl.textContent=best[current];message.style.display="flex";
+ message.innerHTML="<div><h2>Time's up! 🏁</h2><p>You scored <b>"+score+"</b> on "+settings[current].name+" mode.</p></div>";
+ statusEl.textContent="Final score: "+score;start.textContent="Play Again";
+}
+function begin(){
+ stop();score=0;scoreEl.textContent=0;const s=settings[current];time=s.time;timeEl.textContent=time;playing=true;
+ dot.style.width=s.size+"px";dot.style.height=s.size+"px";dot.style.display="block";message.style.display="none";
+ start.textContent="Restart";statusEl.textContent="GO!";moveDot();
+ timer=setInterval(()=>{time--;timeEl.textContent=time;if(time<=0)endGame()},1000);
+ moveTimer=setInterval(()=>{if(playing)moveDot()},s.move);
+}
+dot.addEventListener("click",()=>{if(!playing)return;score++;scoreEl.textContent=score;moveDot()});
+start.addEventListener("click",begin);
+document.querySelectorAll(".mode").forEach(b=>b.addEventListener("click",()=>selectMode(b.dataset.mode)));
+selectMode("easy");
+</script>
+</body></html>
