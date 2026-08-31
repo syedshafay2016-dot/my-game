@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Catch the Dot - 4 Modes</title>
+<title>DotZapper - 4 Modes</title>
 <style>
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;touch-action:manipulation}
@@ -25,6 +25,29 @@ body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;color:#1f2937;disp
 #start{width:100%}.mode{flex:1 1 45%;min-width:0}
 }
 @media(max-width:340px){#arena{height:320px}.mode{font-size:13px;padding:10px 8px}}
+
+
+#levelFlash{
+ display:none;position:absolute;inset:0;z-index:20;pointer-events:none;
+ align-items:center;justify-content:center;text-align:center;
+ background:rgba(255,255,255,.20);
+}
+#levelFlash.show{display:flex;animation:flashFade 2.5s ease-out forwards}
+#levelFlash .level-card{
+ font-size:42px;font-weight:900;padding:18px 28px;border-radius:20px;
+ background:white;border:3px solid #f59e0b;box-shadow:0 12px 30px rgba(0,0,0,.22);
+ animation:levelPop 2.5s ease-out forwards;
+}
+@keyframes levelPop{
+ 0%{transform:scale(.35) rotate(-8deg);opacity:0}
+ 35%{transform:scale(1.18) rotate(3deg);opacity:1}
+ 65%{transform:scale(1) rotate(0)}
+ 100%{transform:scale(1.25);opacity:0}
+}
+@keyframes flashFade{
+ 0%,65%{opacity:1}
+ 100%{opacity:0}
+}
 
 </style>
 
@@ -49,7 +72,7 @@ body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;color:#1f2937;disp
 </head>
 <body>
 <div class="game">
-<h1>🎯 Catch the Dot</h1>
+<h1>⚡ DotZapper</h1>
 <div class="modes">
 <button class="mode selected" data-mode="easy">😊 Easy</button>
 <button class="mode" data-mode="medium">😎 Medium</button>
@@ -57,26 +80,78 @@ body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;color:#1f2937;disp
 <button class="mode" data-mode="ultra">💀 Ultra Hard</button>
 </div>
 <div class="top"><div class="stats">
-<div>Mode: <b id="modeName">Easy</b></div><div>Score: <b id="score">0</b></div>
+<div>Mode: <b id="modeName">Easy</b></div><div>Level: <b id="level">1</b></div><div>Score: <b id="score">0</b></div><div>🏆 Wins: <b id="wins">0</b></div><div>🎡 Spins: <b id="spins">0</b></div>
 <div>Best: <b id="best">0</b></div><div>Time: <b id="time">15</b>s</div>
 </div><button id="start">Start Game</button></div>
-<div id="arena"><div id="message"><div><h2>Choose your challenge! 🎮</h2>
+
+
+
+<div style="text-align:center;margin:10px 0">
+  <button id="shopBtn" type="button" style="font-size:18px;padding:10px 22px;border-radius:12px;cursor:pointer">🛒 SHOP</button>
+</div>
+<div id="levelShop" style="display:none;margin:12px 0;padding:12px;border:2px solid #ddd;border-radius:14px;text-align:center">
+  <b>🏆 LEVEL SHOP</b><br>
+  <div style="margin-top:8px">
+    <button class="buyLevel" data-cost="5" data-levels="5">5 Wins → +5 Levels</button>
+    <button class="buyLevel" data-cost="20" data-levels="30">20 Wins → +30 Levels</button>
+    <button class="buyLevel" data-cost="50" data-levels="75">50 Wins → +75 Levels</button>
+    <button class="buyLevel" data-cost="500" data-levels="20000">500 Wins → +20,000 Levels 🔥</button>
+  </div>
+  <div id="shopResult" style="margin-top:7px;font-weight:bold">Spend wins to buy levels!</div>
+</div>
+<div id="spinBox" style="margin:12px 0;padding:12px;border:2px solid #ddd;border-radius:14px;text-align:center">
+  <b>🎡 SPIN WHEEL</b><br>
+  <button id="spinBtn" type="button" style="margin-top:8px">SPIN</button>
+  <div id="spinResult" style="margin-top:7px;font-weight:bold">Earn 1 spin every 5 wins!</div>
+</div>
+<div id="arena"><div id="levelFlash" aria-live="polite"><div class="level-card" id="levelFlashText">⚡ LEVEL UP!</div></div><div id="message"><div><h2>Choose your challenge! 🎮</h2>
 <p>Easy: 15s — moves slowly</p><p>Medium: 6s — medium speed</p>
 <p>Hard: 4s — fast</p><p>Ultra Hard: 2s — very fast 💀</p></div></div>
 <button id="dot" aria-label="Catch the dot"></button></div>
 <div id="status">Easy mode selected. Ready!</div>
 </div>
 <script>
+let audioCtx=null;
+function tone(freq,duration,type="sine",volume=0.12){
+  try{
+    if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const osc=audioCtx.createOscillator(), gain=audioCtx.createGain();
+    osc.type=type; osc.frequency.value=freq;
+    gain.gain.setValueAtTime(volume,audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+duration);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime+duration);
+  }catch(e){}
+}
+function clickSound(){ tone(700,0.07,"square",0.08); }
+function startSound(){
+  tone(440,0.08,"sine",0.10);
+  setTimeout(()=>tone(660,0.10,"sine",0.10),90);
+}
+function finishSound(){
+  tone(520,0.10,"triangle",0.10);
+  setTimeout(()=>tone(390,0.12,"triangle",0.10),110);
+  setTimeout(()=>tone(260,0.18,"triangle",0.10),240);
+}
+
 const settings={
- easy:{name:"Easy",time:15,size:70,move:1600},
- medium:{name:"Medium",time:6,size:50,move:850},
- hard:{name:"Hard",time:4,size:38,move:550},
- ultra:{name:"Ultra Hard",time:2,size:28,move:300}
+ easy:{name:"Easy",time:15,size:70,move:2000},
+ medium:{name:"Medium",time:6,size:50,move:2000},
+ hard:{name:"Hard",time:4,size:38,move:2000},
+ ultra:{name:"Ultra Hard",time:2,size:28,move:2000}
 };
-let current="easy",score=0,best={easy:0,medium:0,hard:0,ultra:0},time=15,timer=null,moveTimer=null,playing=false;
+let current="easy",score=0,best={easy:0,medium:0,hard:0,ultra:0},levels={easy:1,medium:1,hard:1,ultra:1},time=15,timer=null,moveTimer=null,playing=false;
 const arena=document.getElementById("arena"),dot=document.getElementById("dot"),start=document.getElementById("start"),
-scoreEl=document.getElementById("score"),bestEl=document.getElementById("best"),timeEl=document.getElementById("time"),
-modeName=document.getElementById("modeName"),message=document.getElementById("message"),statusEl=document.getElementById("status");
+scoreEl=document.getElementById("score"),levelEl=document.getElementById("level"),bestEl=document.getElementById("best"),timeEl=document.getElementById("time"),
+modeName=document.getElementById("modeName"),message=document.getElementById("message"),statusEl=document.getElementById("status"),levelFlash=document.getElementById("levelFlash"),levelFlashText=document.getElementById("levelFlashText");
+let levelFlashTimer=null;
+function levelUpSound(){
+ tone(523,0.16,"sine",0.13);
+ setTimeout(()=>tone(659,0.16,"sine",0.13),150);
+ setTimeout(()=>tone(784,0.20,"sine",0.14),300);
+ setTimeout(()=>tone(1047,0.35,"sine",0.16),480);
+}
+function showLevelUp(level){clearTimeout(levelFlashTimer);levelFlash.classList.remove("show");void levelFlash.offsetWidth;levelFlashText.textContent=level>=100000?"🏆 MAX LEVEL 100000!":"⚡ LEVEL "+level+"!";levelFlash.classList.add("show");levelFlashTimer=setTimeout(()=>levelFlash.classList.remove("show"),2500);}
 function moveDot(){
  const size=settings[current].size,maxX=Math.max(0,arena.clientWidth-size),maxY=Math.max(0,arena.clientHeight-size);
  dot.style.left=Math.floor(Math.random()*(maxX+1))+"px";dot.style.top=Math.floor(Math.random()*(maxY+1))+"px";
@@ -86,27 +161,140 @@ function selectMode(mode){
  if(playing){playing=false;stop();dot.style.display="none"}
  current=mode;const s=settings[current];
  document.querySelectorAll(".mode").forEach(b=>b.classList.toggle("selected",b.dataset.mode===mode));
- modeName.textContent=s.name;time=s.time;timeEl.textContent=time;score=0;scoreEl.textContent=0;bestEl.textContent=best[current];
+ modeName.textContent=s.name;time=s.time;timeEl.textContent=time;score=0;scoreEl.textContent=0;levelEl.textContent=levels[current];bestEl.textContent=best[current];
  dot.style.width=s.size+"px";dot.style.height=s.size+"px";message.style.display="flex";
  message.innerHTML="<div><h2>"+s.name+" Mode</h2><p>You have "+s.time+" seconds. Press Start!</p></div>";
  statusEl.textContent=s.name+" mode selected. Ready!";start.textContent="Start Game";
 }
 function endGame(){
- if(!playing)return;playing=false;stop();dot.style.display="none";
- if(score>best[current])best[current]=score;bestEl.textContent=best[current];message.style.display="flex";
+ if(!playing)return;playing=false;stop();dot.style.display="none";finishSound();
+ if(score>best[current])best[current]=score;bestEl.textContent=best[current];addPublicWin();message.style.display="flex";
  message.innerHTML="<div><h2>Time's up! 🏁</h2><p>You scored <b>"+score+"</b> on "+settings[current].name+" mode.</p></div>";
  statusEl.textContent="Final score: "+score;start.textContent="Play Again";
 }
 function begin(){
- stop();score=0;scoreEl.textContent=0;const s=settings[current];time=s.time;timeEl.textContent=time;playing=true;
+ startSound();stop();score=0;scoreEl.textContent=0;const s=settings[current];time=s.time;timeEl.textContent=time;playing=true;
  dot.style.width=s.size+"px";dot.style.height=s.size+"px";dot.style.display="block";message.style.display="none";
  start.textContent="Restart";statusEl.textContent="GO!";moveDot();
  timer=setInterval(()=>{time--;timeEl.textContent=time;if(time<=0)endGame()},1000);
  moveTimer=setInterval(()=>{if(playing)moveDot()},s.move);
 }
-dot.addEventListener("click",()=>{if(!playing)return;score++;scoreEl.textContent=score;moveDot()});
+dot.addEventListener("click",()=>{
+ if(!playing)return;
+ clickSound();
+ score++;
+ scoreEl.textContent=score;
+ if(current==="easy" && score%10===0 && levels.easy<100000){
+   levels.easy++;
+   levelEl.textContent=levels.easy;
+   statusEl.textContent=levels.easy===100000?"🏆 MAX LEVEL 100000!":"Level "+levels.easy+"! ⚡";
+   levelUpSound();showLevelUp(levels.easy);
+   const harderMove=Math.max(120,2000-Math.floor((levels.easy-1)/1000)*19);
+   const harderSize=Math.max(10,settings.easy.size-Math.floor((levels.easy-1)/2500)*2);
+   dot.style.width=harderSize+"px";
+   dot.style.height=harderSize+"px";
+   clearInterval(moveTimer);
+   moveTimer=setInterval(moveDot,harderMove);
+ }
+ moveDot();
+});
 start.addEventListener("click",begin);
 document.querySelectorAll(".mode").forEach(b=>b.addEventListener("click",()=>selectMode(b.dataset.mode)));
 selectMode("easy");
+
+
+
+
+// PUBLIC Wins + Spins — no owner/admin controls.
+let wins = Number(localStorage.getItem("dotzapperWins") || 0);
+let spins = Number(localStorage.getItem("dotzapperSpins") || 0);
+const winsEl=document.getElementById("wins");
+const spinsEl=document.getElementById("spins");
+const spinBtn=document.getElementById("spinBtn");
+const spinResult=document.getElementById("spinResult");
+
+function saveWinSpin(){
+  localStorage.setItem("dotzapperWins",wins);
+  localStorage.setItem("dotzapperSpins",spins);
+}
+function refreshWinSpin(){
+  winsEl.textContent=wins;
+  spinsEl.textContent=spins;
+}
+refreshWinSpin();
+
+function addPublicWin(){
+  if(wins>=100000)return;
+  wins++;
+  if(wins%5===0){
+    spins++;
+    spinResult.textContent="🎁 You earned 1 spin!";
+  }
+  saveWinSpin();
+  refreshWinSpin();
+  if(wins>=100000){
+    message.style.display="flex";
+    message.innerHTML="<div><h1>🏆 DOTZAPPER COMPLETE! 🏆</h1><h2>100,000 WINS!</h2><p>👑 YOU BEAT THE GAME 👑</p></div>";
+    statusEl.textContent="🏆 GAME COMPLETE!";
+  }
+}
+
+spinBtn.addEventListener("click",()=>{
+  if(spins<1){
+    spinResult.textContent="❌ No spins — earn 1 every 5 wins!";
+    return;
+  }
+  spins--;
+  const rewards=[
+    ["⭐ +50 Score",()=>{score+=50;scoreEl.textContent=score;}],
+    ["⚡ +100 Score",()=>{score+=100;scoreEl.textContent=score;}],
+    ["🏆 +5 Levels",()=>{levels[current]=Math.min(100000,levels[current]+5);levelEl.textContent=levels[current];}],
+    ["🎁 Extra Spin",()=>{spins++;}],
+    ["🔴 Big Dot",()=>{dot.style.width="90px";dot.style.height="90px";}]
+  ];
+  const reward=rewards[Math.floor(Math.random()*rewards.length)];
+  reward[1]();
+  spinResult.textContent=reward[0];
+  saveWinSpin();
+  refreshWinSpin();
+});
+
+
+// LEVEL SHOP
+const shopResult=document.getElementById("shopResult");
+document.querySelectorAll(".buyLevel").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    const cost=Number(btn.dataset.cost);
+    const levelReward=Number(btn.dataset.levels);
+
+    if(wins<cost){
+      shopResult.textContent="❌ You need "+cost+" wins!";
+      return;
+    }
+
+    wins-=cost;
+    levels[current]=Math.min(100000,levels[current]+levelReward);
+    levelEl.textContent=levels[current];
+
+    saveWinSpin();
+    refreshWinSpin();
+
+    shopResult.textContent="✅ Bought +"+levelReward.toLocaleString()+" levels for "+cost+" wins!";
+    levelUpSound();
+    showLevelUp(levels[current]);
+  });
+});
+
+
+// SHOP BUTTON
+const shopBtn=document.getElementById("shopBtn");
+const levelShop=document.getElementById("levelShop");
+shopBtn.addEventListener("click",()=>{
+  const opening=levelShop.style.display==="none";
+  levelShop.style.display=opening?"block":"none";
+  shopBtn.textContent=opening?"❌ CLOSE SHOP":"🛒 SHOP";
+  if(opening) levelShop.scrollIntoView({behavior:"smooth",block:"center"});
+});
+
 </script>
 </body></html>
